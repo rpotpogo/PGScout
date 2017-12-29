@@ -1,6 +1,7 @@
 import logging
 from base64 import b64encode
 from collections import deque
+import random
 
 import time
 from mrmime.pogoaccount import POGOAccount, CaptchaException
@@ -181,8 +182,50 @@ class Scout(POGOAccount):
     def scout_by_encounter_id(self, job):
         self.log_info("Performing encounter request at {}, {}".format(job.lat, job.lng))
         responses = self.req_encounter(job.encounter_id, job.spawn_point_id, float(job.lat), float(job.lng))
-        self.update_history()
-        return self.parse_encounter_response(responses, job)
+        if job.ditto_mode == False:
+            self.update_history()
+            return self.parse_encounter_response(responses, job)
+        else: #catch to check for ditto
+            self.log_info("Trying to catch mon at {}, {}".format(job.lat, job.lng))
+            random_throw = 1.5 + 0.25*random.random()
+            random_spin = 0.8 + 0.1*random.random()
+            response = self.req_catch_pokemon(encounter_id=job.encounter_id,
+                               spawn_point_id=job.spawn_point_id,ball=1,
+                               normalized_reticle_size= random_throw,
+                               spin_modifier=random_spin)
+            print ('{}',response)
+            lcp = self.last_caught_pokemon
+            if (lcp is not None):
+                lastcaughtpokemon = self.last_caught_pokemon['pokemon_id']
+                self.log_info("last_caught_pokemon={}".format (lastcaughtpokemon))
+                if (int(lastcaughtpokemon) == 132):
+                    self.log_info("DITTO found!!")
+                    responses = {
+                        'success': True,
+                        'ditto': True
+                    }
+                    return responses
+                else:
+                    responses = {
+                        'success': True,
+                        'ditto': False
+                    }
+                    return responses
+            else:
+                return self.parse_encounter_response_ditto(response,job)
+
+    def parse_encounter_response_ditto(self, responses, job):
+        if not responses:
+            return self.scout_error("Empty encounter response.")
+
+        if self.has_captcha():
+            return self.scout_error("Scout account captcha'd.")
+        catch_response = responses['CATCH_POKEMON']['status']
+        if catch_response is 3:
+            return self.scout_error("pokemon ran.")
+        elif catch_response is 2:
+            return self.scout_error("out of balls.")
+        return self.scout_error("unknown error in dittomode.")
 
     def parse_encounter_response(self, responses, job):
         if not responses:

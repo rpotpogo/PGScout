@@ -7,7 +7,7 @@ from pgscout.config import cfg_get, get_pokemon_name
 
 class ScoutJob(object):
 
-    def __init__(self, pokemon_id, encounter_id, spawn_point_id, lat, lng, despawn_time=None):
+    def __init__(self, pokemon_id, encounter_id, spawn_point_id, lat, lng, despawn_time=None, ditto_mode=False):
         self.pokemon_id = int(pokemon_id)
         self.pokemon_name = get_pokemon_name(pokemon_id)
         self.encounter_id = encounter_id
@@ -15,6 +15,7 @@ class ScoutJob(object):
         self.lat = float(lat)
         self.lng = float(lng)
         self.despawn_time = despawn_time
+        self.ditto_mode = ditto_mode
 
         self.processed = False
         self.result = {}

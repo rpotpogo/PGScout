@@ -85,7 +85,7 @@ def get_iv():
         return jsonify(result)
 
     # Create a ScoutJob
-    job = ScoutJob(pokemon_id, encounter_id, spawn_point_id, lat, lng, despawn_time=despawn_time)
+    job = ScoutJob(pokemon_id, encounter_id, spawn_point_id, lat, lng, despawn_time=despawn_time, ditto_mode=False)
 
     # Enqueue and wait for job to be processed
     jobs.put((prio, time.time(), job))
@@ -97,6 +97,30 @@ def get_iv():
         cache_encounter(cache_key, job.result)
     return jsonify(job.result)
 
+@app.route("/ditto", methods=['GET'])
+def get_ditto():
+    pokemon_id = request.args["pokemon_id"]
+    pokemon_name = get_pokemon_name(pokemon_id)
+    forced = request.args.get('forced')
+    prio = PRIO_HIGH if forced is not None else get_pokemon_prio(pokemon_id)
+
+    lat = request.args["latitude"]
+    lng = request.args["longitude"]
+
+    encounter_id = normalize_encounter_id(request.args.get("encounter_id"))
+    # Spawn point ID is assumed to be a hex string
+    spawn_point_id = request.args.get("spawn_point_id")
+    despawn_time = request.args.get("despawn_time")
+
+    # Create a ScoutJob
+    job = ScoutJob(pokemon_id, encounter_id, spawn_point_id, lat, lng, despawn_time=despawn_time, ditto_mode=True)
+
+    # Enqueue and wait for job to be processed
+    jobs.put((prio, time.time(), job))
+    while not job.processed:
+        time.sleep(1)
+
+    return jsonify(job.result)
 
 @app.route("/status/", methods=['GET'])
 @app.route("/status/<int:page>", methods=['GET'])
